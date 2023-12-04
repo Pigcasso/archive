@@ -1,4 +1,7 @@
+import 'dart:convert';
 import 'dart:typed_data';
+import 'package:enough_convert/enough_convert.dart';
+
 import '../util/archive_exception.dart';
 import '../util/input_stream.dart';
 import '../util/output_stream.dart';
@@ -216,15 +219,20 @@ class TarFile {
     return x;
   }
 
-  String _parseString(InputStreamBase input, int numBytes) {
+  String _parseString(InputStreamBase input, int numBytes, {bool utf8 = true}) {
+    final codes = input.readBytes(numBytes).toUint8List();
+    final r = codes.indexOf(0);
+    final s = codes.sublist(0, r < 0 ? null : r);
     try {
-      final codes = input.readBytes(numBytes).toUint8List();
-      final r = codes.indexOf(0);
-      final s = codes.sublist(0, r < 0 ? null : r);
-      final str = String.fromCharCodes(s).trim();
+      final str =
+          utf8 ? Utf8Decoder().convert(s) : String.fromCharCodes(s).trim();
       return str;
     } catch (e) {
-      throw ArchiveException('Invalid Archive');
+      try {
+        return GbkCodec(allowInvalid: true).decode(s);
+      } catch (e) {
+        throw ArchiveException('Invalid Archive');
+      }
     }
   }
 
